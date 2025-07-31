@@ -1,8 +1,14 @@
 ﻿using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace TinyShot
 {
-    internal class BMPRingBuffer
+
+
+    // This might seem overkill, but since the target is to capture 144fps/second max for thoses who want it,
+    // we need a buffer to avoid losing frames during high load, handle latency ect...
+
+    public sealed class BMPRingBuffer
     {
         private readonly Bitmap[] _buffer;
         private int _head = 0;
@@ -10,6 +16,8 @@ namespace TinyShot
         private int _count = 0;
         private readonly int _capacity;
         private readonly object _lock = new();
+
+        private readonly SemaphoreSlim _flushSignal = new(0);
 
         public BMPRingBuffer(int capacity)
         {
@@ -26,18 +34,19 @@ namespace TinyShot
                 lock (_lock)
                 {
                     if (_count == _capacity)
-                        return false; // Buffer is full
+                        return false; // Buffer full
 
-                    _buffer[_tail]?.Dispose(); // Dispose previous if not null
+                    _buffer[_tail]?.Dispose();
                     _buffer[_tail] = (Bitmap)scrShot.Clone();
                     _tail = (_tail + 1) % _capacity;
                     _count++;
+                    _flushSignal.Release(); // hello world !
                     return true;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error adding bitmap to ring buffer: {ex.Message}");
+                Console.WriteLine($"[TryAdd] Error: {ex.Message}");
                 return false;
             }
         }
@@ -51,7 +60,7 @@ namespace TinyShot
                 lock (_lock)
                 {
                     if (_count == 0)
-                        return false; // Buffer is empty
+                        return false;
 
                     scrShot = _buffer[_head];
                     _buffer[_head] = null;
@@ -62,25 +71,76 @@ namespace TinyShot
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving bitmap from ring buffer: {ex.Message}");
+                Console.WriteLine($"[TryGet] Error: {ex.Message}");
                 return false;
             }
         }
 
-        public int Count
+        private static async Task SaveBMPAsync(Bitmap bitmap, string path)
         {
-            get { lock (_lock) return _count; }
+            using var mem = new MemoryStream();
+            bitmap.Save(mem, ImageFormat.Png);
+            mem.Position = 0;
+
+            await using var fs = new FileStream(path, FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true);
+
+            await mem.CopyToAsync(fs);
         }
 
-        public bool IsEmpty
+        public async Task FlushLoopAsync(CancellationToken token)
         {
-            get { lock (_lock) return _count == 0; }
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await _flushSignal.WaitAsync(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                while (TryGet(out var bmp))
+                {
+                    try
+                    {
+                        string path = Path.Combine("screenshots", $"{DateTime.Now:HHmmss_fff}.png");
+                        await SaveBMPAsync(bmp, path);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Flush] Save error: {ex.Message}");
+                    }
+                    finally
+                    {
+                        bmp.Dispose();
+                    }
+                }
+            }
+
+            // Flush remaining images on cancellation
+            while (TryGet(out var bmp))
+            {
+                try
+                {
+                    string path = Path.Combine("screenshots", $"{DateTime.Now:HHmmss_fff}.png");
+                    await SaveBMPAsync(bmp, path);
+                }
+                catch { }
+                finally
+                {
+                    bmp.Dispose();
+                }
+            }
         }
 
-        public bool IsFull
-        {
-            get { lock (_lock) return _count == _capacity; }
-        }
+        public int Count => lockAndReturn(() => _count);
+        public bool IsEmpty => lockAndReturn(() => _count == 0);
+        public bool IsFull => lockAndReturn(() => _count == _capacity);
 
         public void Clear()
         {
@@ -93,6 +153,11 @@ namespace TinyShot
                 }
                 _head = _tail = _count = 0;
             }
+        }
+
+        private T lockAndReturn<T>(Func<T> func)
+        {
+            lock (_lock) return func();
         }
     }
 }

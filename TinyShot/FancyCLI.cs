@@ -1,5 +1,4 @@
 ﻿using Spectre.Console;
-using System.Text;
 
 namespace TinyShot
 {
@@ -11,20 +10,20 @@ namespace TinyShot
 
             AnsiConsole.Clear();
 
-           
+
             AnsiConsole.Write(
                 new FigletText("TinyShot")
                     .Centered()
                     .Color(Color.Orange1));
 
-           
+
             AnsiConsole.Write(new Panel("[bold yellow]Welcome to TinyShot — your friendly screen capture tool![/]")
                 .Border(BoxBorder.Double)
                 .BorderStyle(new Style(Color.Green))
                 .Padding(1, 1, 1, 1)
                 .Header("[bold blue]Main Menu[/]", Justify.Center));
 
-            
+
             while (true)
             {
                 var choice = AnsiConsole.Prompt(
@@ -59,7 +58,7 @@ namespace TinyShot
                             .BorderStyle(new Style(Color.Red))
                             .Padding(1, 1));
                         Thread.Sleep(1500);
-                        Environment.Exit(0);
+                        // Environment.Exit(0);
                         break;
 
                     default:
@@ -74,7 +73,7 @@ namespace TinyShot
 
         private static void StartCapture()
         {
-            
+
             AnsiConsole.MarkupLine("[italic]Capture logic to be implemented...[/]");
         }
     }

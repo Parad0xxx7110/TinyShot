@@ -13,7 +13,7 @@ using ResultCode = SharpDX.DXGI.ResultCode;
 
 namespace TinyShot
 {
-    public class DeviceFrameCapture : IDisposable
+    public class DXDeviceFrameCap : IDisposable
     {
         private Factory1 _factory;
         private Adapter1 _adapter;
@@ -28,7 +28,7 @@ namespace TinyShot
         private int _height;
         private bool _disposed;
 
-        public DeviceFrameCapture(int adapterIndex = 0, int outputIndex = 0)
+        public DXDeviceFrameCap(int adapterIndex = 0, int outputIndex = 0)
         {
             Initialize(adapterIndex, outputIndex);
         }
@@ -72,7 +72,9 @@ namespace TinyShot
 
             try
             {
-                _duplicatedOutput.TryAcquireNextFrame(500, out var info, out var screenResource);
+                var result = _duplicatedOutput.TryAcquireNextFrame(500, out var info, out var screenResource);
+                if (!result.Success)
+                    return null;
 
                 using (screenResource)
                 using (var screenTexture = screenResource.QueryInterface<Texture2D>())
@@ -82,23 +84,40 @@ namespace TinyShot
 
                 var map = _device.ImmediateContext.MapSubresource(_stagingTexture, 0, MapMode.Read, MapFlags.None);
 
-                unsafe
-                {
-                    byte* src = (byte*)map.DataPointer;
-                    byte* dst = (byte*)_bmpData.Scan0;
-                    int rowBytes = _width * 4;
+                Bitmap bitmap = new Bitmap(_width, _height, PixelFormat.Format32bppArgb);
 
-                    for (int y = 0; y < _height; y++)
+                try
+                {
+                    var bmpData = bitmap.LockBits(new Rectangle(0, 0, _width, _height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
+
+                    unsafe
                     {
-                        new ReadOnlySpan<byte>(src + y * map.RowPitch, rowBytes)
-                            .CopyTo(new Span<byte>(dst + y * _bmpData.Stride, rowBytes));
+                        byte* src = (byte*)map.DataPointer;
+                        byte* dst = (byte*)bmpData.Scan0;
+                        int rowBytes = _width * 4;
+
+                        for (int y = 0; y < _height; y++)
+                        {
+                            new ReadOnlySpan<byte>(src + y * map.RowPitch, rowBytes)
+                                .CopyTo(new Span<byte>(dst + y * bmpData.Stride, rowBytes));
+                        }
                     }
+
+                    bitmap.UnlockBits(bmpData);
+                }
+                catch
+                {
+                    bitmap.Dispose();
+                    throw;
+                }
+                finally
+                {
+                    _device.ImmediateContext.UnmapSubresource(_stagingTexture, 0);
                 }
 
-                _device.ImmediateContext.UnmapSubresource(_stagingTexture, 0);
                 _duplicatedOutput.ReleaseFrame();
 
-                return _bitmap;
+                return bitmap;
             }
             catch (SharpDXException ex)
             {
@@ -118,6 +137,7 @@ namespace TinyShot
 
             return null;
         }
+
 
         private void ResetDuplication()
         {

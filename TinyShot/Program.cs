@@ -1,101 +1,28 @@
-﻿using System.Drawing.Imaging;
-using TinyShot;
+﻿using TinyShot;
 
-namespace TinyShotApp
+class Program
 {
-
-
-    // Yes this is some bad code that need refactoring,fixes, more pactical design... but it works for now.
-    // Frames are saved directly from the GPU to disk using SharpDX, this should avoir shenanigans
-    // with sizes, screen DPI, etc....
-
-    class Program
+    static async Task Main(string[] args)
     {
-        static void Main(string[] args)
-        {
+        string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
+        Directory.CreateDirectory(outputDir);
 
-            FancyCLI.ShowMenu();
+        using var manager = new CaptureManager(60, 150); // 60 FPS, buffer 70 images
 
-            string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshot");
-            Directory.CreateDirectory(outputDir);
+        manager.Start();
 
-            using var capture = new DeviceFrameCapture();
-            if (capture == null)
-            {
-                Console.WriteLine("Failed to initialize frame capture.");
-                return;
-            }
+        using var cts = new CancellationTokenSource();
 
-            Console.WriteLine("Frame capture initialized. Starting capture...");
-            var buffer = new BMPRingBuffer(100); // bumped up to 100 frames to avoid losing frames during high load, 20 was testing value
-            if (buffer == null)
-            {
-                Console.WriteLine("[FATAL]Failed to initialize ring buffer. Aborting...");
+        var flushTask = manager.GetBuffer().FlushLoopAsync(cts.Token);
 
-                Thread.Sleep(1500);
-                return;
-            }
+        Console.WriteLine("Capture started at 60 FPS. Press ENTER to stop...");
+        Console.ReadLine();
 
-            bool isStopRequested = false;
+        manager.Stop();
 
-            // Producer thread (capture frames)
-            var captureThread = new Thread(() =>
-            {
-                while (!isStopRequested)
-                {
-                    var frame = capture.CaptureFrame();
-                    if (frame != null)
-                    {
-                        if (!buffer.TryAdd(frame))
-                            frame.Dispose(); // Full buffer, dispose frame
-                    }
-                    else
-                    {
-                        Thread.Sleep(1); // Avoid spamming if no frame is available
-                    }
-                }
-            });
+        cts.Cancel();
+        await flushTask;
 
-            // Consummer thread (save frames)
-            var saveThread = new Thread(() =>
-            {
-                int count = 0;
-
-                while (!isStopRequested)
-                {
-                    if (buffer.TryGet(out var bmp))
-                    {
-                        string path = Path.Combine(outputDir, $"frame_{count:D5}.png");
-
-                        // Lossless PNG format, but CPU heavy, using jpeg for speed by default
-                        // bmp.Save(path, ImageFormat.Png);
-
-                        bmp.Save(path, ImageFormat.Jpeg);
-                        bmp.Dispose();
-                        count++;
-                    }
-                    else
-                    {
-                        Thread.Sleep(1);
-                    }
-                }
-            });
-
-            // Start threads
-            captureThread.Start();
-            saveThread.Start();
-
-            Console.WriteLine("Press ENTER to stop...");
-            Console.ReadLine();
-
-            // Signal threads to stop
-            isStopRequested = true;
-
-            // Wait for threads to finish
-            captureThread.Join();
-            saveThread.Join();
-
-            Console.WriteLine("Capture terminated. Files saved to: " + outputDir);
-        }
+        Console.WriteLine($"Capture stopped. Screenshots saved to: {outputDir}");
     }
 }
