@@ -13,6 +13,9 @@ namespace TinyShotApp
     {
         static void Main(string[] args)
         {
+
+            FancyCLI.ShowMenu();
+
             string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshot");
             Directory.CreateDirectory(outputDir);
 
@@ -24,7 +27,7 @@ namespace TinyShotApp
             }
 
             Console.WriteLine("Frame capture initialized. Starting capture...");
-            var buffer = new BMPRingBuffer(20); // 20 frames de marge
+            var buffer = new BMPRingBuffer(100); // bumped up to 100 frames to avoid losing frames during high load, 20 was testing value
             if (buffer == null)
             {
                 Console.WriteLine("[FATAL]Failed to initialize ring buffer. Aborting...");
