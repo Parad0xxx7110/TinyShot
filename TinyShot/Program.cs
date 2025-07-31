@@ -1,7 +1,14 @@
-﻿using TinyShot;
+﻿using System.Drawing.Imaging;
+using TinyShot;
 
 namespace TinyShotApp
 {
+
+
+    // Yes this is some bad code that need refactoring,fixes, more pactical design... but it works for now.
+    // Frames are saved directly from the GPU to disk using SharpDX, this should avoir shenanigans
+    // with sizes, screen DPI, etc....
+
     class Program
     {
         static void Main(string[] args)
@@ -10,7 +17,21 @@ namespace TinyShotApp
             Directory.CreateDirectory(outputDir);
 
             using var capture = new DeviceFrameCapture();
+            if (capture == null)
+            {
+                Console.WriteLine("Failed to initialize frame capture.");
+                return;
+            }
+
+            Console.WriteLine("Frame capture initialized. Starting capture...");
             var buffer = new BMPRingBuffer(20); // 20 frames de marge
+            if (buffer == null)
+            {
+                Console.WriteLine("[FATAL]Failed to initialize ring buffer. Aborting...");
+
+                Thread.Sleep(1500);
+                return;
+            }
 
             bool isStopRequested = false;
 
@@ -36,12 +57,17 @@ namespace TinyShotApp
             var saveThread = new Thread(() =>
             {
                 int count = 0;
+
                 while (!isStopRequested)
                 {
                     if (buffer.TryGet(out var bmp))
                     {
                         string path = Path.Combine(outputDir, $"frame_{count:D5}.png");
-                        bmp.Save(path);
+
+                        // Lossless PNG format, but CPU heavy, using jpeg for speed by default
+                        // bmp.Save(path, ImageFormat.Png);
+
+                        bmp.Save(path, ImageFormat.Jpeg);
                         bmp.Dispose();
                         count++;
                     }

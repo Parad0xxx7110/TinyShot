@@ -8,6 +8,9 @@ using Device = SharpDX.Direct3D11.Device;
 using MapFlags = SharpDX.Direct3D11.MapFlags;
 using ResultCode = SharpDX.DXGI.ResultCode;
 
+
+#pragma warning disable CA1416 // Plateform compatibility, will only be used on Windows anyway.
+
 namespace TinyShot
 {
     public class DeviceFrameCapture : IDisposable
@@ -66,6 +69,7 @@ namespace TinyShot
 
                 var map = _device.ImmediateContext.MapSubresource(_stagingTexture, 0, MapMode.Read, MapFlags.None);
 
+
                 var bitmap = new Bitmap(_width, _height, PixelFormat.Format32bppArgb);
                 var bmpData = bitmap.LockBits(
                     new Rectangle(0, 0, _width, _height),
@@ -73,6 +77,8 @@ namespace TinyShot
                     bitmap.PixelFormat);
 
                 int rowBytes = _width * 4;
+
+                // Copy data from the staging texture to the bitmap
                 unsafe
                 {
                     byte* src = (byte*)map.DataPointer;
