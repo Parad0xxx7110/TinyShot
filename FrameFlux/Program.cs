@@ -14,8 +14,7 @@ class Program
 
         using var cts = new CancellationTokenSource();
 
-        var flushTask = manager.GetBuffer().FlushLoopAsync(cts.Token);
-
+        var flushTask = manager.FlushBufferAsync(cts.Token);
         Console.WriteLine("Capture started at 60 FPS. Press ENTER to stop...");
         Console.ReadLine();
 

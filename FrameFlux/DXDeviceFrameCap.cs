@@ -12,17 +12,17 @@ using ResultCode = SharpDX.DXGI.ResultCode;
 
 namespace FrameFlux
 {
-    public class DXDeviceFrameCap : IDisposable
+    public sealed class DXDeviceFrameCap : IDisposable
     {
-        private Factory1 _factory;
-        private Adapter1 _adapter;
-        private Device _device;
-        private Output1 _output1;
-        private Output _output;
-        private OutputDuplication _duplicatedOutput;
-        private Texture2D _stagingTexture;
-        private Bitmap _bitmap;
-        private BitmapData _bmpData;
+        private Factory1? _factory;
+        private Adapter1? _adapter;
+        private Device? _device;
+        private Output1? _output1;
+        private Output? _output;
+        private OutputDuplication? _duplicatedOutput;
+        private Texture2D? _stagingTexture;
+        private Bitmap? _bitmap;
+        private BitmapData? _bmpData;
         private int _width;
         private int _height;
         private bool _disposed;
@@ -68,6 +68,8 @@ namespace FrameFlux
         public Bitmap? CaptureFrame()
         {
             if (_disposed) return null;
+            if (_duplicatedOutput == null || _device == null || _stagingTexture == null)
+                return null;
 
             try
             {
@@ -159,6 +161,10 @@ namespace FrameFlux
                 Usage = ResourceUsage.Staging
             });
 
+            if (_output1 == null)
+                throw new InvalidOperationException("_output1 est null lors de l'initialisation de la duplication.");
+            if (_device == null)
+                throw new InvalidOperationException("_device est null lors de l'initialisation de la duplication.");
             _duplicatedOutput = _output1.DuplicateOutput(_device);
         }
 

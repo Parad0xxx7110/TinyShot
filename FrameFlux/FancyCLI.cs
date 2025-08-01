@@ -2,7 +2,7 @@
 
 namespace FrameFlux
 {
-    internal class FancyCLI
+    internal sealed class FancyCLI
     {
         public static void ShowMenu()
         {
@@ -12,12 +12,12 @@ namespace FrameFlux
 
 
             AnsiConsole.Write(
-                new FigletText("TinyShot")
+                new FigletText("FrameFluX")
                     .Centered()
                     .Color(Color.Orange1));
 
 
-            AnsiConsole.Write(new Panel("[bold yellow]Welcome to TinyShot — your friendly screen capture tool![/]")
+            AnsiConsole.Write(new Panel("[bold yellow]Welcome to FrameFluX — your friendly screen capture tool![/]")
                 .Border(BoxBorder.Double)
                 .BorderStyle(new Style(Color.Green))
                 .Padding(1, 1, 1, 1)

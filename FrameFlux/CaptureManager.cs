@@ -1,12 +1,8 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Drawing;
-
-namespace FrameFlux
+﻿namespace FrameFlux
 {
-    public class CaptureManager : IDisposable
+
+#pragma warning disable CA1416
+    public sealed class CaptureManager : IDisposable
     {
         private readonly DXDeviceFrameCap _captureDevice;
         private readonly MemManager _buffer;
@@ -60,7 +56,9 @@ namespace FrameFlux
                         // Drop oldest if full
                         if (_buffer.TryGet(out var oldBmp))
                         {
+
                             oldBmp.Dispose();
+
                         }
                         _buffer.TryAdd(bmp);
                     }
@@ -77,7 +75,12 @@ namespace FrameFlux
             }
         }
 
-        public MemManager GetBuffer() => _buffer;
+        public Task FlushBufferAsync(CancellationToken token)
+        {
+            return _buffer.FlushLoopAsync(token);
+        }
+
+       // public MemManager GetBuffer() => _buffer;
 
         public void Dispose()
         {
