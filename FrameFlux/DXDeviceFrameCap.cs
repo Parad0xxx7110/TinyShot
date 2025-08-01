@@ -4,14 +4,13 @@ using SharpDX.DXGI;
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
-
 using Device = SharpDX.Direct3D11.Device;
 using MapFlags = SharpDX.Direct3D11.MapFlags;
 using ResultCode = SharpDX.DXGI.ResultCode;
 
 #pragma warning disable CA1416
 
-namespace TinyShot
+namespace FrameFlux
 {
     public class DXDeviceFrameCap : IDisposable
     {

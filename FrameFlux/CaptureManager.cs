@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Drawing;
 
-namespace TinyShot
+namespace FrameFlux
 {
     public class CaptureManager : IDisposable
     {

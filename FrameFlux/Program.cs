@@ -1,13 +1,14 @@
-﻿using TinyShot;
+﻿using FrameFlux;
 
 class Program
 {
     static async Task Main(string[] args)
     {
+        //
         string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
         Directory.CreateDirectory(outputDir);
-
-        using var manager = new CaptureManager(60, 150); // 60 FPS, buffer 70 images
+        TimeSpan captureInterval = TimeSpan.FromMilliseconds(3000); 
+        using var manager = new CaptureManager(captureInterval, 150);
 
         manager.Start();
 

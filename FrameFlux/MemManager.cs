@@ -3,7 +3,7 @@ using System.Drawing.Imaging;
 
 #pragma warning disable CA1416
 
-namespace TinyShot
+namespace FrameFlux
 {
     public sealed class MemManager : IDisposable
     {
